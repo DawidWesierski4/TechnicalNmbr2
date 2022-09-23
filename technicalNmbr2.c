@@ -104,7 +104,6 @@ ParseMail(char *mail, void *out)
    /*
     *if there was an '.' character before '@':
     * out content
-    *  [false value] <- isAlias
     *  ["name"] <- id.names[0] / id.alias
     *  [MAX_NAME bytes of memory ] <- id.names[1]
     *  [MAX_DOMAIN bytes of memory] <- domain
@@ -113,7 +112,6 @@ ParseMail(char *mail, void *out)
     *  name.surname@domain.com
     *otherwise:
     * out content
-    *  [false value] <- isAlias
     *  [MAX_NAME bytes of memory ] <- id.alias / id.names[0], id.names[1]
     *  [MAX_DOMAIN bytes of memory] <- domain
     * mail points to
@@ -121,6 +119,10 @@ ParseMail(char *mail, void *out)
     *  alias@domain.com
     */
    if (atCharPtr - mail > MAX_NAME - 1) {
+      if ( ((credentials*)out)->id.names[0] == ((credentials*)out)->id.names[1]) {
+         /*to make sure that we do not free the same pointer 2 times */
+         ((credentials*)out)->id.names[1] = NULL;
+      }
       fprintf(stderr, "ERR_STR_BUFF_OVERFLOW\n");
       return ERR_STR_BUFF_OVERFLOW;
    }
@@ -194,8 +196,8 @@ int main(void)
       printf("RESULT: %d\n\n",aux);
    }
 
-   aux = ParseMail("adequatly_longer_test_name.adequatly_longer__test_surname"
-                   "@adequatly_longer_domain.com", (void*)&janK);
+   aux = ParseMail("adequatly_longer_test_name.adequatly_longer_test_name"
+                   "@adequatly_longer_test_name", (void*)&janK);
    if (!aux) {
       printCredentials(janK);
    } else {
@@ -254,9 +256,30 @@ int main(void)
    }
 
 
-   aux = ParseMail("notadequatly_longer_test_name_______________________"
-                   ".notadequatly_longer__test_surname__________________"
-                   "@notadequatly_longer_domain.coma____________________",
+   aux = ParseMail("adequatly_longer_test_name"
+                   ".adequatly_longer__test_surname"
+                   "@notadequatly_longer_domain.coma_____________________",
+                   (void*)&janK);
+   if (!aux) {
+      printCredentials(janK);
+   } else {
+      printf("RESULT: %d\n\n",aux);
+   }
+
+   aux = ParseMail("notadequatly_longer_alias__________________________________"
+                   "__________________________________________________________"
+                   "@adequatly_longer_domain.com",
+                   (void*)&janK);
+   if (!aux) {
+      printCredentials(janK);
+   } else {
+      printf("RESULT: %d\n\n",aux);
+   }
+
+   aux = ParseMail("adequatly_longer_name."
+                   "notadequatly_longer_surname________________________________"
+                   "___________________________________________________________"
+                   "@adequatly_longer_domain.com",
                    (void*)&janK);
    if (!aux) {
       printCredentials(janK);
