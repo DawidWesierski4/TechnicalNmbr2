@@ -10,7 +10,9 @@ enum ERR_NUMS {
    ERR_ALLOCATING_MEMORY = 1,
    ERR_NULL_POINTER,
    ERR_STR_BUFF_OVERFLOW,
-   ERR_INPUT_FORMAT
+   ERR_INPUT_FORMAT,
+   ERR_INPUT_FORMAT_SIZE_RULE_VIOLATION,
+   ERR_INPUT_FORMAT_ILLEGAL_CHAR
 };
 
 typedef struct credentialInformation {
@@ -25,19 +27,22 @@ typedef struct credentialInformation {
 int
 checkName(const char* name)
 {
-   int size = strlen(name);
+   int minSize = 3;
    int i = 0;
-   if (size < 2)
-      return 1;
 
-   for (i = 0; i < size; i++) {
+   while (name[i] != '\0') {
       /* we don't need to put @ in the illegal character list here
        * as everything past the at is considered domain */
-      if (name[i] == '.' ||
-          name[i] == ' ') {
-         return 2;
+      if (name[i] == '.' || name[i] == ' ') {
+         return ERR_INPUT_FORMAT_ILLEGAL_CHAR;
       }
+      i++;
    }
+
+   if (i < minSize) {
+      return ERR_INPUT_FORMAT_SIZE_RULE_VIOLATION;
+   }
+
    return 0;
 }
 
@@ -45,17 +50,23 @@ checkName(const char* name)
 int
 checkDomain(const char* name)
 {
-   int size = strlen(name);
-   int i ;
-   if (size < 3)
-      return 1;
+   int minSize = 3;
+   int i = 1;
 
-   for (i = 1; i < size; i++) {
-      if (name[i] == ' ' ||
-          name[i] == '@' ) {
-         return 2;
-      }
+   if (name[1] != '@') {
+      return ERR_INPUT_FORMAT_ILLEGAL_CHAR;
    }
+   while (name[i] != '\0') {
+      if (name[i] == '@' || name[i] == ' ') {
+         return ERR_INPUT_FORMAT_ILLEGAL_CHAR;
+      }
+      i++;
+   }
+
+   if (i < minSize) {
+      return ERR_INPUT_FORMAT_SIZE_RULE_VIOLATION;
+   }
+
    return 0;
 }
 
@@ -94,7 +105,7 @@ ParseMail(char *mail, void *out)
       check = checkName( ((credentials*)out)->id.names[0] );
       if (check) {
          fprintf(stderr, "ERR_INPUT_FORMAT\n");
-         return ERR_INPUT_FORMAT;
+         return check;
       }
       mail = dotCharPtr + 1; /*move pointer past the dot char*/
    } else {
@@ -119,7 +130,8 @@ ParseMail(char *mail, void *out)
     *  alias@domain.com
     */
    if (atCharPtr - mail > MAX_NAME - 1) {
-      if ( ((credentials*)out)->id.names[0] == ((credentials*)out)->id.names[1]) {
+      if ( ((credentials*)out)->id.names[0] ==
+          ((credentials*)out)->id.names[1] ) {
          /*to make sure that we do not free the same pointer 2 times */
          ((credentials*)out)->id.names[1] = NULL;
       }
@@ -139,7 +151,7 @@ ParseMail(char *mail, void *out)
 
    if (check) {
       fprintf(stderr, "ERR_INPUT_FORMAT\n");
-      return ERR_INPUT_FORMAT;
+      return check;
    }
 
    mail = atCharPtr;
@@ -154,7 +166,7 @@ ParseMail(char *mail, void *out)
    check = checkDomain( ((credentials*)out)->domain );
    if (check) {
       fprintf(stderr, "ERR_INPUT_FORMAT\n");
-      return ERR_INPUT_FORMAT;
+      return check;
    }
 
    return 0;
